@@ -1,0 +1,78 @@
+[
+    {
+      "group": {
+        "name": "plugin:health_dashboard"
+      },
+      "setting": {
+        "description": "Includes journal in health dashboard",
+        "is_translatable": false,
+        "name": "dashboard_include",
+        "pretty_name": "Health Dashboard Include",
+        "type": "boolean"
+      },
+      "value": {
+        "default": "off"
+      }
+    },
+    {
+        "group": {
+          "name": "plugin:health_dashboard"
+        },
+        "setting": {
+          "description": "The number of issue per year the journal is expected to publish",
+          "is_translatable": false,
+          "name": "publication_frequency",
+          "pretty_name": "Publication Frequency",
+          "type": "int"
+        },
+        "value": {
+          "default": 12
+        }
+      },
+      {
+        "group": {
+          "name": "plugin:health_dashboard"
+        },
+        "setting": {
+          "description": "The number of days articles can stay in unassigned without reporting",
+          "is_translatable": false,
+          "name": "threshold_unassigned_days",
+          "pretty_name": "Threshold Unassinged Days",
+          "type": "int"
+        },
+        "value": {
+          "default": 5
+        }
+      },
+      {
+       "group": {
+         "name": "plugin:health_dashboard"
+       },
+       "setting": {
+         "description": "The number of days a journal can have no editors login without reporting",
+         "is_translatable": false,
+         "name": "threshold_login_days",
+         "pretty_name": "Threshold Login Days",
+         "type": "int"
+       },
+       "value": {
+         "default": 30
+       }
+      },
+      {
+       "group": {
+         "name": "plugin:health_dashboard"
+       },
+       "setting": {
+         "description": "The number of days an article can stay in an unpublished state without reporting",
+         "is_translatable": false,
+         "name": "threshold_stalled_days",
+         "pretty_name": "Threshold Stalled Days",
+         "type": "int"
+       },
+       "value": {
+         "default": 5
+       }
+      }
+]
+  

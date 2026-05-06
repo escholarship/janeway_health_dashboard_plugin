@@ -1,9 +1,8 @@
 from utils import models
 from utils.logger import get_logger
 
-from events import logic as event_logic
+from utils.install import update_settings
 
-from plugins.eschol import logic
 
 logger = get_logger(__name__)
 
@@ -34,6 +33,11 @@ def install():
         plugin.save()
     else:
         print(f'Plugin {PLUGIN_NAME} is already installed.')
+
+    update_settings(
+        file_path='plugins/health_dashboard/install/settings.json',
+    )
+
 
 # def register_for_events():
 #     pass

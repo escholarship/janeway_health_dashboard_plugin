@@ -9,10 +9,22 @@ from django.db.models import Max
 from django.db.models import Q
 
 from journal.models import Journal
-from core.models import Role
+from core.models import Role, SettingValue
 from review.models import ReviewRound
 
 from .plugin_settings import PLUGIN_NAME
+
+incomplete_stages = ["Assigned",
+                     "Under Review",
+                     "Under Revision",
+                     "Accepted",
+                     "Editor Copyediting",
+                     "Author Copyediting",
+                     "Final Copyediting",
+                     "Typesetting",
+                     "typesetting_plugin",
+                     "Proofing",
+                     "pre_publication"]
 
 # dashboard_include
 # journal_category
@@ -22,78 +34,85 @@ def dashboard(request):
     template = "health_dashboard/dashboard.html"
 
     today = timezone.now()
-    five_days = today - timedelta(days=5)
     one_year = today - timedelta(days=365)
-
     editor_role_id = Role.objects.get(name="Editor").id
 
-    # threshold_unassigned_days
-    # count and oldest unassigned article
-    unassigned = Journal.objects\
-        .annotate(
-            unassigned=Count(
-                "article",
-                filter=Q(article__stage="Unassigned",
-                         article__date_submitted__lte=five_days),
-                distinct=True
-            )                
+    results = []
+    for j in Journal.objects.all():
+        included = j.get_setting(
+            group_name="plugin:health_dashboard",
+            setting_name="dashboard_include",
         )
-    result = { i.name: {"unassigned": i.unassigned, "url": i.site_url()} for i in unassigned }
+        if included:
+            unassigned_threshold = int(j.get_setting(
+                group_name="plugin:health_dashboard",
+                setting_name="threshold_unassigned_days",
+            ))
+            d = today - timedelta(days=unassigned_threshold)
+            unassigned_set = j.article_set.filter(stage="Unassigned",
+                                                date_submitted__lte=d)\
+                                        .order_by("date_submitted")
+            oldest_date = unassigned_set.first().date_submitted if unassigned_set.exists() else today
+            login_threshold = int(j.get_setting(
+                group_name="plugin:health_dashboard",
+                setting_name="threshold_login_days",
+            ))
+            last_editor = j.accountrole_set.filter(role=editor_role_id).order_by("user__last_login").first()
 
-    # threshold_login_days
-    # last editor and days since last login
-    last_login = Journal.objects\
-        .annotate(
-            last_login=Max("accountrole__user__last_login",
-                           filter=Q(accountrole__role=editor_role_id))
-        )
-    for r in last_login:
-        result[r.name].update({"last_login": r.last_login})
+            incomplete_articles = j.article_set.filter(stage__in=incomplete_stages)
+            incomplete_articles = incomplete_articles.annotate(
+                last_action=Max(
+                    "workflowlog__timestamp"
+                )
+            )
+            threshold = timedelta(days=int(j.get_setting(
+                group_name="plugin:health_dashboard",
+                setting_name="threshold_stalled_days",
+            )))
+            total_stalled = incomplete_articles.filter(last_action__lte=(today - threshold)).count()
+
+            annual_peer_reviewed = j.article_set.filter(peer_reviewed=True,
+                                                    stage="Published",
+                                                    date_published__gte=one_year).count()
+
+            cadence = j.issue_set.filter(date__lte=today, date__gte=one_year).count()
+            publication_frequency = int(j.get_setting(
+                group_name="plugin:health_dashboard",
+                setting_name="publication_frequency",
+            ))
+
+
+            values = {"journal": j,
+                    "total_unassigned": unassigned_set.count(),
+                    "days_unassigned": (today - oldest_date).days,
+                    "last_editor": last_editor.user,
+                    "days_since_login": (today - last_editor.user.last_login).days,
+                    "login_threshold": login_threshold,
+                    "total_stalled": total_stalled,
+                    "annual_peer_reviewed": annual_peer_reviewed,
+                    "cadence": cadence,
+                    "publication_frequency": publication_frequency}
+            
+            print(values)
+            
+            results.append(values)
+
+    context = {'plugin_name': PLUGIN_NAME,
+               'results': results}
+    return render(request, template, context)
+
 
     # count stalled articles and time since last review completed
     # threshold_post_review_days
-    stalled_articles = ReviewRound.objects\
-        .filter(article__stage="Under Review")\
-        .exclude(reviewassignment__is_complete=False)\
-        .values_list("article", flat=True).distinct()
-    stalled_reviews = Journal.objects\
-        .annotate(
-            stalled_reviews=Count(
-                "article",
-                filter=Q(article__in=stalled_articles),
-            )
-        )
-    for r in stalled_reviews:
-        result[r.name].update({"stalled_reviews": r.stalled_reviews})    
+    # stalled_articles = ReviewRound.objects\
+    #     .filter(article__stage="Under Review")\
+    #     .exclude(reviewassignment__is_complete=False)\
+    #     .values_list("article", flat=True).distinct()
+    # stalled_reviews = Journal.objects\
+    #     .annotate(
+    #         stalled_reviews=Count(
+    #             "article",
+    #             filter=Q(article__in=stalled_articles),
+    #         )
+    #     )
 
-    # count peer-reviewed articles published in the last year
-    peer_reviewed = Journal.objects\
-        .annotate(
-            peer_reviewed=Count(
-                "article",
-                filter=Q(article__peer_reviewed=True,
-                         article__stage="Published",
-                         article__date_published__gte=one_year),
-                distinct=True
-            )
-        )
-    for r in peer_reviewed:
-        result[r.name].update({"peer_reviewed": r.peer_reviewed})
-
-    # issues published in the last year
-    # publication_frequency
-    cadence = Journal.objects\
-        .annotate(
-            cadence=Count(
-                "issue",
-                filter=Q(issue__date__lte=today,
-                         issue__date__gte=one_year),
-                distinct=True
-            )
-        )
-    for r in cadence:
-        result[r.name].update({"cadence": r.cadence})
-
-    context = {'plugin_name': PLUGIN_NAME,
-               'result': result}
-    return render(request, template, context)

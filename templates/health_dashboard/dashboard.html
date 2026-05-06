@@ -15,20 +15,57 @@
                     <th>Journal</th>
                     <th>Unassigned articles after 5 days</th>
                     <th>Last editor login</th>
-                    <th>Stalled reviews</th>
-                    <th>Total peer-reviewed articles</th>
+                    <th>Stalled articles</th>
+                    <th>Annual peer-reviewed articles</th>
                     <th>Issues in last year</th>
                 </tr>
             </thead>
             <tbody>
-            {% for key, value in result.items %}
+            {% for r in results %}
                 <tr>
-                    <td><a href="{{ value.url }}">{{ key }}</a></td>
-                    <td>{{ value.unassigned }}</td>
-                    <td>{{ value.last_login }}</td>
-                    <td>{{ value.stalled_reviews }}</td>
-                    <td>{{ value.peer_reviewed }}</td>
-                    <td>{{ value.cadence }}</td>
+                    <td><a href="{{ r.journal.site_url }}">{{ r.journal.name }}</a></td>
+                    <td>
+                        {% if r.total_unassigned > 0 %}
+                            <div class="callout alert">
+                                {{ r.total_unassigned }}
+                                (longest unassigned for {{ r.days_unassigned }} days)
+                            </div>
+                        {% else %}
+                            <div>0</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div {% if r.days_since_login > r.login_threshold %}class="callout alert"{% endif %}>
+                            {{ r.last_editor }} ({{ r.days_since_login }} days)
+                        </div>
+                    </td>
+                    <td>
+                        {% if r.total_stalled > 0 %}
+                            <div class="callout alert">
+                                {{ r.total_stalled }}
+                            </div>
+                        {% else %}
+                            {{ r.total_stalled }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.annual_peer_reviewed < 5 %}
+                            <div class="callout alert">
+                                {{ r.annual_peer_reviewed }}
+                            </div>
+                        {% else %}
+                            {{ r.annual_peer_reviewed }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.cadence < r.publication_frequency %}
+                            <div class="callout alert">
+                                {{ r.cadence }}
+                            </div>
+                        {% else %}
+                            {{ r.cadence }}
+                        {% endif %}
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>
