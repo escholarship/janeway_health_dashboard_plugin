@@ -1,0 +1,38 @@
+{% extends "admin/core/base.html" %}
+{% load foundation %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+<div class="box">
+    <div class="title-area">
+        <h2>Health Dashboard</h2>
+    </div>
+    <div class="content">
+        <table class="table table-bordered small" id="eschol_publish_articles">
+            <thead>
+                <tr>
+                    <th>Journal</th>
+                    <th>Unassigned articles after 5 days</th>
+                    <th>Last editor login</th>
+                    <th>Stalled reviews</th>
+                    <th>Total peer-reviewed articles</th>
+                    <th>Issues in last year</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for key, value in result.items %}
+                <tr>
+                    <td><a href="{{ value.url }}">{{ key }}</a></td>
+                    <td>{{ value.unassigned }}</td>
+                    <td>{{ value.last_login }}</td>
+                    <td>{{ value.stalled_reviews }}</td>
+                    <td>{{ value.peer_reviewed }}</td>
+                    <td>{{ value.cadence }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock body %}
