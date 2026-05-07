@@ -26,7 +26,6 @@ incomplete_stages = ["Assigned",
                      "Proofing",
                      "pre_publication"]
 
-# dashboard_include
 # journal_category
 
 @login_required
@@ -57,7 +56,17 @@ def dashboard(request):
                 group_name="plugin:health_dashboard",
                 setting_name="threshold_login_days",
             ))
-            last_editor = j.accountrole_set.filter(role=editor_role_id).order_by("user__last_login").first()
+
+
+            editors = j.accountrole_set.filter(role=editor_role_id)\
+                                        .exclude(user__last_login=None)\
+                                        .order_by("-user__last_login")
+            if editors.exists():
+                last_editor = editors.first().user
+                days_since_login = (today - last_editor.last_login).days
+            else:
+                last_editor = "No editors have logged in"
+                days_since_login = None
 
             incomplete_articles = j.article_set.filter(stage__in=incomplete_stages)
             incomplete_articles = incomplete_articles.annotate(
@@ -85,15 +94,13 @@ def dashboard(request):
             values = {"journal": j,
                     "total_unassigned": unassigned_set.count(),
                     "days_unassigned": (today - oldest_date).days,
-                    "last_editor": last_editor.user,
-                    "days_since_login": (today - last_editor.user.last_login).days,
+                    "last_editor": last_editor,
+                    "days_since_login": days_since_login,
                     "login_threshold": login_threshold,
                     "total_stalled": total_stalled,
                     "annual_peer_reviewed": annual_peer_reviewed,
                     "cadence": cadence,
                     "publication_frequency": publication_frequency}
-            
-            print(values)
             
             results.append(values)
 

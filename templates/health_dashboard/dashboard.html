@@ -13,6 +13,7 @@
             <thead>
                 <tr>
                     <th>Journal</th>
+                    <th>Expected issues per year</th>
                     <th>Unassigned articles after 5 days</th>
                     <th>Last editor login</th>
                     <th>Stalled articles</th>
@@ -24,19 +25,20 @@
             {% for r in results %}
                 <tr>
                     <td><a href="{{ r.journal.site_url }}">{{ r.journal.name }}</a></td>
+                    <td>{{ r.publication_frequency }}</td>
                     <td>
                         {% if r.total_unassigned > 0 %}
                             <div class="callout alert">
                                 {{ r.total_unassigned }}
-                                (longest unassigned for {{ r.days_unassigned }} days)
+                                ({{ r.days_unassigned }} days)
                             </div>
                         {% else %}
                             <div>0</div>
                         {% endif %}
                     </td>
                     <td>
-                        <div {% if r.days_since_login > r.login_threshold %}class="callout alert"{% endif %}>
-                            {{ r.last_editor }} ({{ r.days_since_login }} days)
+                        <div {% if r.days_since_login > r.login_threshold or r.days_since_login == None %}class="callout alert"{% endif %}>
+                            {{ r.last_editor }} {% if r.days_since_login is not None %}({{ r.days_since_login }} days){% endif %}
                         </div>
                     </td>
                     <td>
