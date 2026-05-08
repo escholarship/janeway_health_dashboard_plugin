@@ -2,17 +2,18 @@ from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-
 from django.utils import timezone
+
 from django.db.models import Count
 from django.db.models import Max
 from django.db.models import Q
 
 from journal.models import Journal
-from core.models import Role, SettingValue
-from review.models import ReviewRound
+from core.models import Role
 
 from .plugin_settings import PLUGIN_NAME
+from .models import JournalCategory
+from .forms import CategorySelectForm
 
 incomplete_stages = ["Assigned",
                      "Under Review",
@@ -25,8 +26,6 @@ incomplete_stages = ["Assigned",
                      "typesetting_plugin",
                      "Proofing",
                      "pre_publication"]
-
-# journal_category
 
 def get_setting(journal, name):
     return journal.get_setting(
@@ -42,8 +41,19 @@ def dashboard(request):
     one_year = today - timedelta(days=365)
     editor_role_id = Role.objects.get(name="Editor").id
 
+    categories = request.GET.get("categories", [])
+    if len(categories):
+        form = CategorySelectForm(request.GET)
+        journal_ids = JournalCategory.objects.filter(category__in=categories)\
+                                             .values_list("journal__pk", flat=True)\
+                                             .distinct()
+        journals = Journal.objects.filter(pk__in=journal_ids)\
+                                  .prefetch_related("article_set")
+    else:
+        form = CategorySelectForm()
+        journals = Journal.objects.prefetch_related("article_set")
+
     results = []
-    journals = Journal.objects.prefetch_related("article_set")
     for j in journals:
         if get_setting(j, "dashboard_include"):
             # Unassigned articles
@@ -101,10 +111,11 @@ def dashboard(request):
             results.append(values)
 
     context = {'plugin_name': PLUGIN_NAME,
+               'form': form,
                'results': results}
     return render(request, template, context)
 
-
+#from review.models import ReviewRound
     # count stalled articles and time since last review completed
     # threshold_post_review_days
     # stalled_articles = ReviewRound.objects\

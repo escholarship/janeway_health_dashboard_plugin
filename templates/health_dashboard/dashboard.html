@@ -9,6 +9,11 @@
         <h2>Health Dashboard</h2>
     </div>
     <div class="content">
+        <form action="" method="GET">
+            {% csrf_token %}
+            {{ form }}
+             <button type="submit" class="button">Apply</button>
+        </form>
         <table class="table table-bordered small" id="eschol_publish_articles">
             <thead>
                 <tr>
