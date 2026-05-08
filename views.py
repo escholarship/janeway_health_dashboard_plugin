@@ -28,6 +28,12 @@ incomplete_stages = ["Assigned",
 
 # journal_category
 
+def get_setting(journal, name):
+    return journal.get_setting(
+            group_name="plugin:health_dashboard",
+            setting_name=name,
+        )
+
 @login_required
 def dashboard(request):
     template = "health_dashboard/dashboard.html"
@@ -37,30 +43,22 @@ def dashboard(request):
     editor_role_id = Role.objects.get(name="Editor").id
 
     results = []
-    for j in Journal.objects.all():
-        included = j.get_setting(
-            group_name="plugin:health_dashboard",
-            setting_name="dashboard_include",
-        )
-        if included:
-            unassigned_threshold = int(j.get_setting(
-                group_name="plugin:health_dashboard",
-                setting_name="threshold_unassigned_days",
-            ))
+    journals = Journal.objects.prefetch_related("article_set")
+    for j in journals:
+        if get_setting(j, "dashboard_include"):
+            # Unassigned articles
+            unassigned_threshold = int(get_setting(j, "threshold_unassigned_days"))
             d = today - timedelta(days=unassigned_threshold)
             unassigned_set = j.article_set.filter(stage="Unassigned",
                                                 date_submitted__lte=d)\
-                                        .order_by("date_submitted")
+                                          .order_by("date_submitted")
             oldest_date = unassigned_set.first().date_submitted if unassigned_set.exists() else today
-            login_threshold = int(j.get_setting(
-                group_name="plugin:health_dashboard",
-                setting_name="threshold_login_days",
-            ))
 
-
+            # Last editor login
+            login_threshold = int(get_setting(j, "threshold_login_days"))
             editors = j.accountrole_set.filter(role=editor_role_id)\
-                                        .exclude(user__last_login=None)\
-                                        .order_by("-user__last_login")
+                                       .exclude(user__last_login=None)\
+                                       .order_by("-user__last_login")
             if editors.exists():
                 last_editor = editors.first().user
                 days_since_login = (today - last_editor.last_login).days
@@ -68,27 +66,25 @@ def dashboard(request):
                 last_editor = "No editors have logged in"
                 days_since_login = None
 
+            # Incomplete articles that have stalled in a pre-publication stage
             incomplete_articles = j.article_set.filter(stage__in=incomplete_stages)
             incomplete_articles = incomplete_articles.annotate(
                 last_action=Max(
                     "workflowlog__timestamp"
                 )
             )
-            threshold = timedelta(days=int(j.get_setting(
-                group_name="plugin:health_dashboard",
-                setting_name="threshold_stalled_days",
-            )))
+            threshold = timedelta(days=int(get_setting(j, "threshold_stalled_days")))
             total_stalled = incomplete_articles.filter(last_action__lte=(today - threshold)).count()
 
+            # Peer-reviewed articles published in the last year
             annual_peer_reviewed = j.article_set.filter(peer_reviewed=True,
                                                     stage="Published",
                                                     date_published__gte=one_year).count()
 
+
+            # Issues published in the last year
             cadence = j.issue_set.filter(date__lte=today, date__gte=one_year).count()
-            publication_frequency = int(j.get_setting(
-                group_name="plugin:health_dashboard",
-                setting_name="publication_frequency",
-            ))
+            publication_frequency = int(get_setting(j, "publication_frequency"))
 
 
             values = {"journal": j,
