@@ -76,6 +76,15 @@ def dashboard(request):
                 last_editor = "No editors have logged in"
                 days_since_login = None
 
+            reviews_threshold = today - timedelta(days=int(get_setting(j, "threshold_review_days")))
+            reviews_complete = j.article_set.filter(stage="Under Review")\
+                                            .exclude(reviewassignment__is_complete=False)\
+                                            .annotate(last_complete=Max("reviewassignment__date_complete"))
+            stalled_after_reviews = reviews_complete.filter(last_complete__lte=reviews_threshold)\
+                                                    .distinct()\
+                                                    .count()
+
+
             # Incomplete articles that have stalled in a pre-publication stage
             incomplete_articles = j.article_set.filter(stage__in=incomplete_stages)
             incomplete_articles = incomplete_articles.annotate(
@@ -103,6 +112,7 @@ def dashboard(request):
                     "last_editor": last_editor,
                     "days_since_login": days_since_login,
                     "login_threshold": login_threshold,
+                    "total_reviews_stalled": stalled_after_reviews,
                     "total_stalled": total_stalled,
                     "annual_peer_reviewed": annual_peer_reviewed,
                     "cadence": cadence,
@@ -114,19 +124,3 @@ def dashboard(request):
                'form': form,
                'results': results}
     return render(request, template, context)
-
-#from review.models import ReviewRound
-    # count stalled articles and time since last review completed
-    # threshold_post_review_days
-    # stalled_articles = ReviewRound.objects\
-    #     .filter(article__stage="Under Review")\
-    #     .exclude(reviewassignment__is_complete=False)\
-    #     .values_list("article", flat=True).distinct()
-    # stalled_reviews = Journal.objects\
-    #     .annotate(
-    #         stalled_reviews=Count(
-    #             "article",
-    #             filter=Q(article__in=stalled_articles),
-    #         )
-    #     )
-

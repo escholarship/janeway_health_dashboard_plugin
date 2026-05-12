@@ -5,8 +5,12 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.3.8/css/dataTables.dataTables.css">
+
+<!--
 <link rel="stylesheet" href="https://cdn.datatables.net/columncontrol/1.2.1/css/columnControl.dataTables.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.8/css/responsive.dataTables.min.css">
+-->
 {% endblock %}
 
 {% block body %}
@@ -20,13 +24,14 @@
             {{ form }}
              <button type="submit" class="button">Apply</button>
         </form>
-        <table id="dashboard" class="table table-bordered small" id="eschol_publish_articles">
+        <table id="dashboard" class="display" id="eschol_publish_articles">
             <thead>
                 <tr>
                     <th>Journal</th>
                     <th>Expected issues per year</th>
                     <th>Stale unassigned articles</th>
                     <th>Last editor login</th>
+                    <th>Articles stalled after reviews</th>
                     <th>Stalled articles</th>
                     <th>Annual peer-reviewed articles</th>
                     <th>Issues in last year</th>
@@ -51,6 +56,15 @@
                         <div {% if r.days_since_login > r.login_threshold or r.days_since_login == None %}class="callout alert"{% endif %}>
                             {{ r.last_editor }} {% if r.days_since_login is not None %}({{ r.days_since_login }} days){% endif %}
                         </div>
+                    </td>
+                    <td>
+                        {% if r.total_reviews_stalled > 0 %}
+                            <div class="callout alert">
+                                {{ r.total_reviews_stalled }}
+                            </div>
+                        {% else %}
+                            {{ r.total_reviews_stalled }}
+                        {% endif %}
                     </td>
                     <td>
                         {% if r.total_stalled > 0 %}

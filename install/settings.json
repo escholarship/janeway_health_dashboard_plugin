@@ -64,6 +64,21 @@
          "name": "plugin:health_dashboard"
        },
        "setting": {
+         "description": "The number of days a reviews have been completed before an article is considered stalled",
+         "is_translatable": false,
+         "name": "threshold_review_days",
+         "pretty_name": "Threshold Review Days",
+         "type": "int"
+       },
+       "value": {
+         "default": 2
+       }
+      },
+      {
+       "group": {
+         "name": "plugin:health_dashboard"
+       },
+       "setting": {
          "description": "The number of days an article can stay in an unpublished state without reporting",
          "is_translatable": false,
          "name": "threshold_stalled_days",
