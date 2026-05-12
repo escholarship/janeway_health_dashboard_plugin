@@ -9,7 +9,8 @@ from django.db.models import Max
 from django.db.models import Q
 
 from journal.models import Journal
-from core.models import Role
+from core.models import Role, SettingValue
+from submission.models import Article
 
 from .plugin_settings import PLUGIN_NAME
 from .models import JournalCategory
@@ -27,11 +28,10 @@ incomplete_stages = ["Assigned",
                      "Proofing",
                      "pre_publication"]
 
-def get_setting(journal, name):
-    return journal.get_setting(
-            group_name="plugin:health_dashboard",
-            setting_name=name,
-        )
+def get_setting(journal_settings, default_settings, name):
+    if name in journal_settings:
+        return journal_settings[name]
+    return default_settings[name]
 
 @login_required
 def dashboard(request):
@@ -47,43 +47,70 @@ def dashboard(request):
         journal_ids = JournalCategory.objects.filter(category__in=categories)\
                                              .values_list("journal__pk", flat=True)\
                                              .distinct()
-        journals = Journal.objects.filter(pk__in=journal_ids)\
-                                  .prefetch_related("article_set")
+        journals = Journal.objects.filter(pk__in=journal_ids)
     else:
         form = CategorySelectForm()
-        journals = Journal.objects.prefetch_related("article_set")
+        journals = Journal.objects.all()
+
+    default_settings = {
+        x: y for x, y in SettingValue.objects.filter(
+                            journal=None,
+                            setting__group__name="plugin:health_dashboard")\
+            .values_list("setting__name", "value")
+    }
 
     results = []
     for j in journals:
-        if get_setting(j, "dashboard_include"):
+        journal_settings = {
+            x: y for x, y in SettingValue.objects.filter(
+                                journal=j,
+                                setting__group__name="plugin:health_dashboard")\
+                .values_list("setting__name", "value")
+        }
+        if get_setting(journal_settings, default_settings, "dashboard_include"):
             # Unassigned articles
-            unassigned_threshold = int(get_setting(j, "threshold_unassigned_days"))
+            unassigned_threshold = int(get_setting(journal_settings,
+                                                   default_settings,
+                                                   "threshold_unassigned_days"))
             d = today - timedelta(days=unassigned_threshold)
             unassigned_set = j.article_set.filter(stage="Unassigned",
                                                 date_submitted__lte=d)\
                                           .order_by("date_submitted")
-            oldest_date = unassigned_set.first().date_submitted if unassigned_set.exists() else today
+            oldest = unassigned_set.first()
+            oldest_date = oldest.date_submitted if oldest else today
 
             # Last editor login
-            login_threshold = int(get_setting(j, "threshold_login_days"))
+            login_threshold = int(get_setting(journal_settings,
+                                              default_settings,
+                                              "threshold_login_days"))
+            j.accountrole_set.select_related("user")
             editors = j.accountrole_set.filter(role=editor_role_id)\
                                        .exclude(user__last_login=None)\
                                        .order_by("-user__last_login")
-            if editors.exists():
-                last_editor = editors.first().user
+            last_editor_role = editors.first()
+            if last_editor_role:
+                last_editor = last_editor_role.user
                 days_since_login = (today - last_editor.last_login).days
             else:
                 last_editor = "No editors have logged in"
                 days_since_login = None
 
-            reviews_threshold = today - timedelta(days=int(get_setting(j, "threshold_review_days")))
-            reviews_complete = j.article_set.filter(stage="Under Review")\
-                                            .exclude(reviewassignment__is_complete=False)\
-                                            .annotate(last_complete=Max("reviewassignment__date_complete"))
-            stalled_after_reviews = reviews_complete.filter(last_complete__lte=reviews_threshold)\
-                                                    .distinct()\
-                                                    .count()
-
+            reviews_threshold = today - timedelta(days=int(get_setting(journal_settings,
+                                                                       default_settings,
+                                                                       "threshold_review_days")))
+            stalled_after_reviews = Article.objects.filter(
+                journal=j,
+                stage="Under Review",
+            ).annotate(
+                incomplete_reviews=Count(
+                    "reviewassignment",
+                    filter=Q(reviewassignment__is_complete=False)
+                ),
+                last_complete=Max("reviewassignment__date_complete"),
+            ).filter(
+                incomplete_reviews=0,
+                last_complete__lte=reviews_threshold,
+            ).count()
 
             # Incomplete articles that have stalled in a pre-publication stage
             incomplete_articles = j.article_set.filter(stage__in=incomplete_stages)
@@ -92,18 +119,22 @@ def dashboard(request):
                     "workflowlog__timestamp"
                 )
             )
-            threshold = timedelta(days=int(get_setting(j, "threshold_stalled_days")))
+            threshold = timedelta(days=int(get_setting(journal_settings,
+                                                       default_settings,
+                                                       "threshold_stalled_days")))
             total_stalled = incomplete_articles.filter(last_action__lte=(today - threshold)).count()
 
             # Peer-reviewed articles published in the last year
             annual_peer_reviewed = j.article_set.filter(peer_reviewed=True,
-                                                    stage="Published",
-                                                    date_published__gte=one_year).count()
+                                                        stage="Published",
+                                                        date_published__gte=one_year).count()
 
 
             # Issues published in the last year
             cadence = j.issue_set.filter(date__lte=today, date__gte=one_year).count()
-            publication_frequency = int(get_setting(j, "publication_frequency"))
+            publication_frequency = int(get_setting(journal_settings,
+                                                    default_settings,
+                                                    "publication_frequency"))
 
 
             values = {"journal": j,
