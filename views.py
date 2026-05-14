@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -33,7 +33,7 @@ def get_setting(journal_settings, default_settings, name):
         return journal_settings[name]
     return default_settings[name]
 
-@login_required
+@staff_member_required
 def dashboard(request):
     template = "health_dashboard/dashboard.html"
 
