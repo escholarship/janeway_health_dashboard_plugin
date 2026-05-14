@@ -6,11 +6,7 @@
 
 {% block css %}
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.8/css/dataTables.dataTables.css">
-
-<!--
-<link rel="stylesheet" href="https://cdn.datatables.net/columncontrol/1.2.1/css/columnControl.dataTables.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.8/css/responsive.dataTables.min.css">
--->
+<link rel="stylesheet" href="https://cdn.datatables.net/searchbuilder/1.8.4/css/searchBuilder.dataTables.css">
 {% endblock %}
 
 {% block body %}
@@ -19,15 +15,11 @@
         <h2>Health Dashboard</h2>
     </div>
     <div class="content">
-        <form action="" method="GET">
-            {% csrf_token %}
-            {{ form }}
-             <button type="submit" class="button">Apply</button>
-        </form>
         <table id="dashboard" class="display" id="eschol_publish_articles">
             <thead>
                 <tr>
                     <th>Journal</th>
+                    <th>Categories</th>
                     <th>Expected issues per year</th>
                     <th>Stale unassigned articles</th>
                     <th>Last editor login</th>
@@ -41,6 +33,7 @@
             {% for r in results %}
                 <tr>
                     <td><a href="{{ r.journal.site_url }}">{{ r.journal.name }}</a></td>
+                    <td>{{ r.categories }}</td>
                     <td>{{ r.publication_frequency }}</td>
                     <td>
                         {% if r.total_unassigned > 0 %}
@@ -104,10 +97,18 @@
 {% block js %}
 <script type="text/javascript" src="{% static "admin/js/vendor/jquery/jquery.js" %}"></script>
 <script src='//cdn.datatables.net/2.3.8/js/dataTables.min.js'></script>
+<script src="//cdn.datatables.net/searchbuilder/1.8.4/js/dataTables.searchBuilder.js"></script>
+<script src="https://cdn.datatables.net/searchbuilder/1.8.4/js/searchBuilder.dataTables.js"></script>
 <script>
     $('#dashboard').DataTable( {
-        searching: false,
-        paging: false
+        paging: false,
+        layout: {
+            top1: {
+                searchBuilder: {
+                    columns: [0, 1]
+                }
+            }
+        }
     } );
 </script>
 {% endblock %}

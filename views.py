@@ -41,16 +41,15 @@ def dashboard(request):
     one_year = today - timedelta(days=365)
     editor_role_id = Role.objects.get(name="Editor").id
 
-    categories = request.GET.get("categories", [])
-    if len(categories):
-        form = CategorySelectForm(request.GET)
-        journal_ids = JournalCategory.objects.filter(category__in=categories)\
-                                             .values_list("journal__pk", flat=True)\
-                                             .distinct()
-        journals = Journal.objects.filter(pk__in=journal_ids)
-    else:
-        form = CategorySelectForm()
-        journals = Journal.objects.all()
+    # categories = request.GET.get("categories", [])
+    # if len(categories):
+    #     form = CategorySelectForm(request.GET)
+    #     journal_ids = JournalCategory.objects.filter(category__in=categories)\
+    #                                          .values_list("journal__pk", flat=True)\
+    #                                          .distinct()
+    #     journals = Journal.objects.filter(pk__in=journal_ids)
+    # else:
+    #     form = CategorySelectForm()
 
     default_settings = {
         x: y for x, y in SettingValue.objects.filter(
@@ -60,7 +59,7 @@ def dashboard(request):
     }
 
     results = []
-    for j in journals:
+    for j in Journal.objects.all():
         journal_settings = {
             x: y for x, y in SettingValue.objects.filter(
                                 journal=j,
@@ -137,21 +136,24 @@ def dashboard(request):
                                                     "publication_frequency"))
 
 
-            values = {"journal": j,
-                    "total_unassigned": unassigned_set.count(),
-                    "days_unassigned": (today - oldest_date).days,
-                    "last_editor": last_editor,
-                    "days_since_login": days_since_login,
-                    "login_threshold": login_threshold,
-                    "total_reviews_stalled": stalled_after_reviews,
-                    "total_stalled": total_stalled,
-                    "annual_peer_reviewed": annual_peer_reviewed,
-                    "cadence": cadence,
-                    "publication_frequency": publication_frequency}
+            values = {
+                "journal": j,
+                "total_unassigned": unassigned_set.count(),
+                "days_unassigned": (today - oldest_date).days,
+                "last_editor": last_editor,
+                "days_since_login": days_since_login,
+                "login_threshold": login_threshold,
+                "total_reviews_stalled": stalled_after_reviews,
+                "total_stalled": total_stalled,
+                "annual_peer_reviewed": annual_peer_reviewed,
+                "cadence": cadence,
+                "publication_frequency": publication_frequency,
+                "categories": ", ".join(j.journalcategory_set.values_list('category__label', flat=True))
+            }
             
             results.append(values)
 
     context = {'plugin_name': PLUGIN_NAME,
-               'form': form,
+               #'form': form,
                'results': results}
     return render(request, template, context)
