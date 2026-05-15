@@ -17,6 +17,7 @@ MANAGER_URL = "dashboard"
 def install():
     plugin, created = models.Plugin.objects.get_or_create(
         name=SHORT_NAME,
+        press_wide=True,
         defaults={
             "enabled": True,
             "version": VERSION,
