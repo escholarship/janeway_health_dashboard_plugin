@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('journal', '0068_issue_cached_display_title_a11y_and_more'),
+        ('journal', '0067_issue_cached_display_title_es_and_more'),
     ]
 
     operations = [
